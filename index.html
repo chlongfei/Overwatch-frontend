@@ -62,7 +62,7 @@
                     document.getElementById('camera-grid').innerHTML = alertBad;
 
                 };
-                req.open('GET', 'http://127.0.0.1:5000/cams', true);
+                req.open('GET', 'http://api.overwatch.chlf.dev:8574/cams', true);
                 req.send();
 
             }
@@ -70,7 +70,7 @@
             function showCameras(cameraList){
                 ts = Date.now()
                 cams = JSON.parse(cameraList)
-                for (c = 0; c < cams.length; c++){
+                for (c = 0; c < 100; c++){
                     cam = cams[c]
                     let camView = ' <div id="'+c+'" class="card" style="display:inline-block"> \
                                         <link rel="preload" href="'+cam.baseUrl+'?'+ts+'" as="image">\
