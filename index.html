@@ -72,13 +72,13 @@
                 cams = JSON.parse(cameraList)
                 for (c = 0; c < 100; c++){
                     cam = cams[c]
-                    let camView = ' <div id="'+c+'" class="card" style="display:inline-block"> \
+                    let camView = ' <a id="'+c+'" class="card" style="display:inline-block" href="/views/single-cam.html?camid='+c+'"> \
                                         <link rel="preload" href="'+cam.baseUrl+'?'+ts+'" as="image">\
                                         <img src="'+cam.baseUrl+'?'+ts+'" class="card-img-top" onError="hideMe(\''+c+'\')"/>\
                                         <div class="card-img-overlay">\
                                             <div class="bg-dark text-white p-1">'+cam.friendly+'</div>\
                                         </div>\
-                                    </div>'                                    
+                                    </a>'                                    
                     document.getElementById('camera-grid').innerHTML += camView;
                 }
             }
