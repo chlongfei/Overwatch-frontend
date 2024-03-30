@@ -82,6 +82,7 @@
              * */
              function getCameras(position){
                 var alertPending = '<div class="alert alert-warning" role="alert">Reteriving cameras...</div>';
+                var alertNoCamsLoc = '<div class="alert alert-info" role="alert">No cameras in geographic vicinity.</div>';
                 var alertBad = '<div class="alert alert-danger" role="alert">Failed to reterive cameras. Server may have gone offline.</div>';
 
                 // prep http request for backend api call
@@ -96,8 +97,12 @@
                          *  to page then finally set an 60 second auto-refresh
                          * */
                         document.getElementById('camera-grid').innerHTML = "";
-                        sessionStorage.setItem("clist",this.response);
-                        showCameras(sessionStorage.getItem("clist"));
+                        if (length(this.response) == 0){                            
+                            document.getElementById('camera-grid').innerHTML = alertNoCamsLoc;
+                        }else{
+                            sessionStorage.setItem("clist",this.response);
+                            showCameras(sessionStorage.getItem("clist"));
+                        }
                     }else if (this.status > 400 && this.readyState == 4){
                         // bad request
                         document.getElementById('camera-grid').innerHTML = alertBad;
