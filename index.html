@@ -1,61 +1,178 @@
 <!DOCTYPE html>
-<head>
-    <title>Overwatch | Follow Me</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Expires" content="0" />
-</head>
-<body onload="onLoadHandler()">
-    <div class="container">           
-        
-        <!-- camera grid  -->
-        <div id="camera-grid"></div>        
-                
+<html>
+    <head>
+        <meta lang="en"/>
+        <title>Overwatch - Traffic Companion</title>
+        <link rel="icon" type="image/png" href="favicon.png"/>
+
+        <!-- link external resources -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+        <style>
+            body {
+                background-color: lightgrey;
+            }
+        </style>
+    </head>
+    <body onload="onLoadHandler()">
+        <!-- nav bar -->
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">Overwatch</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <div class="row">
+                        <div class="col-auto">
+                            <label class="form-label" for="qRad">Search Radius (meters)</label>
+                        </div>
+                        <div class="col-auto">
+                            <input class="form-control form-control-sm" id="qRad" type="number" min="0" max="50000" value="20000"/>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary btn-sm" onclick="qRadUpdateHandler()">Set</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- camera display -->
+        <div class="container bg-light">
+            <div id="camGrid" class="row"></div>            
+        </div>
+
+        <!-- scripts -->
         <script>
-            
-            // coordinates the onload behaviour
-            function onLoadHandler() {
-                getLocation();
-                setInterval(reloadCameras, 60000);
+            var alertGeoPermissionDenied = '<div class="alert alert-danger" role="alert">Location access permission denied.</div>';
+            var alertGeoError = '<div class="alert alert-secondary" role="alert">Geolocation service encountered an error, see console logs for details.</div>';
+            var alertCamsNoneAvail = '<div class="alert alert-info" role="alert">No cameras available within specified radius.</div>';
+            var alertCamsFetching = '<div class="alert alert-info" role="alert">Fetching cameras.<div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            var alertCamsFetchBad= '<div class="alert alert-danger" role="alert">Bad Request</div>';
+            var alertCamsOffline= '<div class="alert alert-danger" role="alert">Server Unavailable</div>';
+
+            /** handler for onLoad action
+             * sets initial geo based query and scheduled updater
+             **/
+            function onLoadHandler(){
+                setQueryRadius();
+                updateHandler();
+                setInterval(updateHandler, 60000); // set timer to reload cameras every 60 seconds
             }
 
-            /**
-             * reterives the geocoordinates from browser and gives it to getCameras() for api calling
-             * */
-            function getLocation(){
-                if (navigator.geolocation){
-                    navigator.geolocation.getCurrentPosition(getCameras);
-                } else {
-                    document.getElementById('camera-grid').innerHTML = '<div class="alert alert-danger" role="alert">Geolocation is not supported by this browser</div>';
+            /** handler for update action
+             * updates the current device location and calls to update camera list
+             **/
+            function updateHandler(){
+                navigator.geolocation.getCurrentPosition(setDeviceGeolocation,geolocationErrorHandler);
+                getCamerasByGeolocation();
+            }
+
+            /** handler for query radius update
+             * updates the query radius session value and calls updateHandler to update cameras
+             **/
+            function qRadUpdateHandler(){
+                setQueryRadius();
+                updateHandler();
+            }
+
+            /** sets session value for query radius
+             **/
+            function setQueryRadius(){
+                let qRad = document.getElementById("qRad").value;
+                sessionStorage.setItem("qRad", qRad);
+            }
+
+            /** sets session value for device coordinates
+             **/
+            function setDeviceGeolocation(geoLocationPpsition){
+                sessionStorage.setItem("dGeoLat", geoLocationPpsition.coords.latitude);
+                sessionStorage.setItem("dGeoLon", geoLocationPpsition.coords.longitude);
+            }
+
+            /** erro handler for geolication api
+             **/
+            function geolocationErrorHandler(err){
+                if (err.code = 1){
+                    console.error("Device geolocation permission denied.");
+                    document.getElementById('camGrid').innerHTML = alertGeoPermissionDenied;
+                }else if (err.code = 2){
+                    console.error("An internal error occurred acquiring geolocation.");
+                    document.getElementById('camGrid').innerHTML = alertGeoError;
+                }else if (err.code = 3){
+                    console.error("Geolocation acquisition timed out.");
+                    document.getElementById('camGrid').innerHTML = alertGeoError;
+                }else{
+                    console.error("An unknown error occured acquiring geolocation data.");
+                    document.getElementById('camGrid').innerHTML = alertGeoError;
                 }
             }
 
-
+            /** fetches cameras based on geolocation
+             * queries the backend api for cameras within qRad meters of device geolocation
+             * then calls showCameras() to post the images to screen
+             **/
+            function getCamerasByGeolocation(){
+                let req = new XMLHttpRequest();
+                req.timeout = 2000;
+                req.onreadystatechange = function() {
+                    if (this.status = 200 && this.readyState == 4){
+                        /**
+                         *  when status of request turns to 200 OK and 4 complete state
+                         *  we will clear #camGrid, save camera list to session storage
+                         *  and call showCameras() to project the camera snapshots
+                         * */
+                        document.getElementById('camGrid').innerHTML = "";
+                        if (JSON.parse(this.response).length == 0){                         
+                            console.warn("No cameras available to be fetched in specified radius of geolocation.");
+                            document.getElementById('camGrid').innerHTML = alertCamsNoneAvail;
+                        }else{
+                            sessionStorage.setItem("cList",this.response);
+                            showCameras();
+                        }
+                    }else if (this.status > 400 && this.readyState == 4){
+                        console.error("Bad request to Overwatch api.");
+                        document.getElementById('camGrid').innerHTML = alertCamsFetchBad;
+                    }else{
+                        console.info("Fetching request from Overwatch api.");
+                        document.getElementById('camGrid').innerHTML = alertCamsFetching;
+                        
+                    };
+                };
+                req.timeout = () => {
+                    console.error("Request timed out to Overwatch api.");
+                    document.getElementById('camGrid').innerHTML = alertCamsOffline;
+                }
+                req.open('GET', `https://api.overwatch.chlf.dev/cams/geo/${sessionStorage.getItem('dGeoLat')}/${sessionStorage.getItem('dGeoLon')}/${sessionStorage.getItem("qRad")}`, true);
+                req.send();
+            }
 
             /**
              *  enumerates through the camera list returned from backend API
-             *  and appends #camera-grid with snapshots as cards to screen
-             *  @param {string} cameraList - returned body from http call to api
+             *  and appends #camGrid with snapshots as cards to screen
              * */
-            function showCameras(cameraList){
+             function showCameras(){
                 // to work around browser caching - timestamp is appended as parameter to the snapshot url for 'uniqueness'
                 ts = Date.now()
-                cams = JSON.parse(cameraList)
-                for (c = 0; c < 202; c++){
-                    cam = cams[c]
-                    let camView = ' <a id="'+c+'" class="card mx-auto" style="display:inline-block" href="views/single-cam.html?camid='+c+'"> \
-                                        <link rel="preload" href="'+cam.baseUrl+'?'+ts+'" as="image">\
-                                        <img src="'+cam.baseUrl+'?'+ts+'" class="card-img-top" onError="hideMe(\''+c+'\')"/>\
-                                        <div class="card-img-overlay">\
-                                            <div class="bg-dark text-white p-1">'+cam.friendly+'</div>\
-                                        </div>\
-                                    </a>'                                    
-                    document.getElementById('camera-grid').innerHTML += camView;
+                camList = sessionStorage.getItem("cList")
+                cams = JSON.parse(camList)
+                for (c = 0; c < camList.length; c++){
+                    let cam = cams[c]
+                    if (cam != undefined){
+                        let camView = ` <a id="${c}" class="card col-lg-4" href="views/single-cam.html?camid=${c}"> \
+                                            <link rel="preload" href="${cam.baseUrl}?${ts}" as="image">\
+                                            <img src="${cam.baseUrl}?${ts}" class="card-img-top" onError="hideMe('${c}')"/>\
+                                            <div class="card-img-overlay">\
+                                                <div class="bg-dark text-white p-1">${cam.friendly}</div>\
+                                            </div>\
+                                        </a>`                                
+                        document.getElementById('camGrid').innerHTML += camView;
+                    }
                 }
             }
 
-            
             /**
              * event handler for images that render in error
              * we just hide those...
@@ -63,64 +180,6 @@
              function hideMe(id){
                 document.getElementById(id).style.display = 'none';
             }
-            
-            /**
-             * refreshes #camera-grid to reload camera feeds
-             * */
-            function reloadCameras(){
-                document.getElementById('camera-grid').innerHTML = "";
-                getLocation();
-                console.log('reload occurred')
-            }
-
-            /**
-             * calls backend API to reterieve list of cameras based on
-             * location
-             * @param {float}   lon - longitude of device location
-             * @param {float}   lat - latitude of device location
-             * @param {integer} rad - radius for query
-             * */
-             function getCameras(position){
-                var alertPending = '<div class="alert alert-warning" role="alert">Reteriving cameras...</div>';
-                var alertNoCamsLoc = '<div class="alert alert-info" role="alert">No cameras available in geographic vicinity.</div>';
-                var alertBad = '<div class="alert alert-danger" role="alert">Failed to reterive cameras. Server may have gone offline.</div>';
-
-                // prep http request for backend api call
-                var req = new XMLHttpRequest();
-                req.timeout = 2000;
-                req.onreadystatechange = function() {
-                    if (this.status == 200 && this.readyState == 4){
-                        /**
-                         *  when status of request turns to 200 OK and 4 complete state
-                         *  we will clear #camera-grid, save camera list to session storage
-                         *  and call showCameras() to project the camera snapshots
-                         *  to page then finally set an 60 second auto-refresh
-                         * */
-                        document.getElementById('camera-grid').innerHTML = "";
-                        if (JSON.parse(this.response).length == 0){                            
-                            document.getElementById('camera-grid').innerHTML = alertNoCamsLoc;
-                        }else{
-                            sessionStorage.setItem("clist",this.response);
-                            showCameras(sessionStorage.getItem("clist"));
-                        }
-                    }else if (this.status > 400 && this.readyState == 4){
-                        // bad request
-                        document.getElementById('camera-grid').innerHTML = alertBad;
-                    }else{
-                        // loading request
-                        document.getElementById('camera-grid').innerHTML = alertPending;
-                    };
-                };
-                req.ontimeout = (e) => {
-                    // request timed out
-                    document.getElementById('camera-grid').innerHTML = alertBad;
-
-                };
-                // open and send request
-                req.open('GET', 'https://api.overwatch.chlf.dev/cams/geo/'+position.coords.longitude+'/'+position.coords.latitude+'/2000', true);
-                req.send();
-            } 
-            
         </script>
-    </div>
-</body>
+    </body>
+</html>
